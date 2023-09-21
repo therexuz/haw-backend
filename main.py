@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI()
-broker = '192.168.1.89'
+broker = '192.168.2.1'
 port = 1883
 
 origins =  [
