@@ -5,11 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI()
-broker = '192.168.2.1'
+broker = '192.168.1.88'
 port = 1883
 
 origins =  [
-    "http://localhost:4200",
+    "http://192.168.2.1:8080",
+    "http://192.168.2.2:8080",
+    "http://192.168.1.92:4200",
 ]
 
 app.add_middleware(
@@ -35,6 +37,7 @@ mqtt_client.subscribe("temperatura")
 mqtt_client.subscribe("humedad")
 mqtt_client.subscribe("presion")
 mqtt_client.subscribe("homewizard_mqtt")
+mqtt_client.subscribe("test-result")
 mqtt_client.loop_start()
 
 # Diccionario para almacenar los últimos mensajes de cada tópico
@@ -42,7 +45,8 @@ ultimos_mensajes = {
     "temperatura": "",
     "humedad": "",
     "presion": "",
-    "homewizard_mqtt":""
+    "homewizard_mqtt":"",
+    "test-result":""
 }
 
 @app.get("/temperatura")
@@ -60,3 +64,9 @@ async def read_pressure():
 @app.get("/homewizard_mqtt")
 async def homewizard_mqtt():
     return {"homewizard_mqtt": ultimos_mensajes["homewizard_mqtt"]}
+
+@app.get("/test-mqtt-protocol")
+async def test_mqtt_protocol():
+    mqtt_client.publish("test-mqtt","test")
+    time.sleep(1) # wait
+    return {"test-result":ultimos_mensajes["test-result"]}
