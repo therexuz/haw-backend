@@ -47,7 +47,8 @@ ultimos_mensajes = {
     "humedad": "",
     "presion": "",
     "homewizard_mqtt":"",
-    "test-result":""
+    "test-result":"",
+    "luces":""
 }
 
 @app.get("/temperatura")
@@ -78,3 +79,4 @@ async def turn_on_led():
     time.sleep(1)
     mqtt_client.publish("luces","OFF")
     time.sleep(1)
+    return {"luces":ultimos_mensajes["luces"]}
