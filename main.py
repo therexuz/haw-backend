@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI()
-broker = '192.168.1.88'
+broker = '192.168.2.1'
 port = 1883
 
 origins =  [
@@ -38,6 +38,7 @@ mqtt_client.subscribe("humedad")
 mqtt_client.subscribe("presion")
 mqtt_client.subscribe("homewizard_mqtt")
 mqtt_client.subscribe("test-result")
+mqtt_client.subscribe("luces")
 mqtt_client.loop_start()
 
 # Diccionario para almacenar los últimos mensajes de cada tópico
@@ -70,3 +71,10 @@ async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
     time.sleep(1) # wait
     return {"test-result":ultimos_mensajes["test-result"]}
+
+@app.get("/encender-led")
+async def turn_on_led():
+    mqtt_client.publish("luces","ON")
+    time.sleep(1)
+    mqtt_client.publish("luces","OFF")
+    time.sleep(1)
