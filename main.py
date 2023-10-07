@@ -1,6 +1,5 @@
 import paho.mqtt.client as mqtt
-from fastapi import FastAPI, HTTPException, Response
-import cv2
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
@@ -80,27 +79,3 @@ async def turn_on_led():
     mqtt_client.publish("luces","OFF")
     time.sleep(1)
     return {"luces":ultimos_mensajes["luces"]}
-
-@app.get("/video-stream")
-async def video_stream():
-    cap = cv2.VideoCapture(0)  # Cambia el índice a 1 si estás utilizando una cámara USB
-
-    if not cap.isOpened():
-        return Response(status_code=500, content="No se puede abrir la cámara")
-
-    return Response(content=generate_video_stream(cap), media_type="multipart/x-mixed-replace; boundary=frame")
-
-def generate_video_stream(camera):
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-
-        # Codificar el marco en formato MJPEG
-        ret, buffer = cv2.imencode('.jpg', frame)
-        if not ret:
-            continue
-
-        # Transmitir el marco
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
