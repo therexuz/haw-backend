@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .app.api.actuators import door, camera,leds, ventilation
-from .app.api.sensors import temperature,humidity,light,pressure,air_quality
-from .app.api import devices
-from .app import main
+from .api.actuators import door, camera,leds, ventilation
+from .api.sensors import temperature, air_quality, light, humidity,pressure
+from .api import devices
+from .mqtt.mqttClient import *
 
 app = FastAPI()
 
@@ -25,6 +25,7 @@ app.add_middleware(
 
 # RUTAS DE LOS SENSORES
 app.include_router(temperature.router)
+
 app.include_router(humidity.router)
 app.include_router(pressure.router)
 app.include_router(light.router)
@@ -34,7 +35,7 @@ app.include_router(pressure.router)
 app.include_router(door.router)
 app.include_router(leds.router)
 app.include_router(camera.router)
-app.include_router(air_quality)
+app.include_router(air_quality.router)
 app.include_router(ventilation.router)
 
 # RUTAS DE ADMINISTRACIÓN
@@ -111,6 +112,3 @@ app.include_router(devices.router)
 #     time.sleep(1)
 #     return {"luces":ultimos_mensajes["luces"] + data.text}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

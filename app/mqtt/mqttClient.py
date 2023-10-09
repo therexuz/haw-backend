@@ -30,7 +30,7 @@ class MQTTClient:
         self.client.subscribe("door")
         self.client.subscribe("leds")
         self.client.subscribe("ventilation")
-        #self.client.subscribe("camera")
+        self.client.subscribe("test-result")
 
     def on_message(self, client, userdata, message):
         topic = message.topic
@@ -47,12 +47,15 @@ class MQTTClient:
     def get_last_message(self, topic):
         return self.ultimos_mensajes.get(topic, "")
     
-    def test_connextion(self):
+    def test_connection(self):
         self.client.publish("test-mqtt","test")
         time.sleep(1)
-        return {"test-result":self.ultimos_mensajes["test-result"]}
-
+    
     def disconnect(self):
         self.client.disconnect()
 
-    
+def get_mqtt_client():
+    broker = "192.168.1.83"
+    port = 1883
+    mqtt_client = MQTTClient(broker,port)
+    return mqtt_client
