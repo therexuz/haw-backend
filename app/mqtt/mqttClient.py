@@ -2,10 +2,10 @@ import paho.mqtt.client as mqtt
 import time
 
 class MQTTClient:
-    def __init__(self, broker, port):
+    def __init__(self):
         self.client = mqtt.Client()
         self.client.on_message = self.on_message
-        self.client.connect(broker, port)
+        self.client.connect("192.168.1.83", 1883)
         self.client.loop_start()
 
         # Diccionario para almacenar los últimos mensajes de cada tópico

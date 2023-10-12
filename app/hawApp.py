@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.actuators import door, camera,leds, ventilation
 from .api.sensors import temperature, air_quality, light, humidity,pressure
 from .api import devices
-from .mqtt.mqttClient import *
 
 app = FastAPI()
 
