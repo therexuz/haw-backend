@@ -37,7 +37,7 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
    pip install -r requirements.txt
 ```
 
-3. Ejecuta la API:
+3. Para probar el funcionamiento, ejecuta la API de la siguiente manera:
 
 ```bash
    python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -49,12 +49,34 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-4. Configura y ejecuta el servicio en systemd:
+ 
+ ## Ejecutar como servicio (systemctl)
+
+1. Crear archivo de servicio:
+```bash
+   sudo nano haw-backend.service
+```
+
+2. Escribir los parámetros de configuración para el servicio. Por ejemplo: 
+
+```
+   [Unit]
+   Description=Home Automation Wizard API
+
+   [Service]
+   WorkingDirectory=/ruta/a/la/carpeta/API #Ej.
+   ExecStart=uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+   [Install]
+   WantedBy=multi-user.target
+```
+
+3. Configura y ejecuta el servicio en systemd:
 
 ```bash
-    sudo cp tu-servicio.service /etc/systemd/system/
-    sudo systemctl enable tu-servicio
-    sudo systemctl start tu-servicio
+    sudo cp haw-backend.service /etc/systemd/system/
+    sudo systemctl enable haw-backend.service
+    sudo systemctl start haw-backend.service
 ```
 
 ## Uso
