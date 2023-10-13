@@ -10,6 +10,15 @@ def init_db():
             topic TEXT,
             timestamp DATETIME,
             value REAL
+        ),
+
+        CREATE TABLE IF NOT EXISTS user_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rut TEXT,
+            digito_verificador INTEGER,
+            nombre TEXT,
+            apellido TEXT,
+            email TEXT
         )
         """
     )
