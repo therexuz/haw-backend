@@ -1,11 +1,16 @@
 import paho.mqtt.client as mqtt
+import sqlite3
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from database import init_db
 import time
 
 app = FastAPI()
 broker = '192.168.1.83'
 port = 1883
+
+init_db()
 
 origins =  [
     "http://192.168.2.1:8080",
@@ -25,7 +30,16 @@ def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
+
+    # Obtener el timestamp actual en el formato deseado
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+     # Almacena los datos en la base de datos SQLite
+    conn = sqlite3.connect("home_automation_wizard.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
     # Almacena el último mensaje recibido en un diccionario global
+    conn.commit()
     ultimos_mensajes[topic] = mensaje_recibido
 
 # Configura el cliente MQTT
@@ -78,11 +92,11 @@ async def read_temperature():
     return {"temperatura": ultimos_mensajes["temperature"]}
 
 @app.get("/calidad-aire")
-async def read_temperature():
+async def read_air_quality():
     return {"calidad_aire": ultimos_mensajes["air_quality"]}
 
 @app.get("/presion-atm")
-async def read_temperature():
+async def read_atm_pressure():
     return {"presion_atm": ultimos_mensajes["pressure"]}
 
 @app.get("/humedad")
@@ -90,7 +104,7 @@ async def read_humidity():
     return {"humedad": ultimos_mensajes["humidity"]}
 
 @app.get("/sensor-luz")
-async def read_humidity():
+async def read_light_level():
     return {"light_sensor": ultimos_mensajes["light"]}
 
 # Endpoints de los actuadores
