@@ -39,9 +39,11 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
 
 3. Configura y ejecuta el servicio en systemd:
 
-sudo cp tu-servicio.service /etc/systemd/system/
-sudo systemctl enable tu-servicio
-sudo systemctl start tu-servicio
+```bash
+    sudo cp tu-servicio.service /etc/systemd/system/
+    sudo systemctl enable tu-servicio
+    sudo systemctl start tu-servicio
+```
 
 ## Uso
 
