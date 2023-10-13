@@ -37,7 +37,19 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
    pip install -r requirements.txt
 ```
 
-3. Configura y ejecuta el servicio en systemd:
+3. Ejecuta la API:
+
+```bash
+   python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+ó
+
+```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+4. Configura y ejecuta el servicio en systemd:
 
 ```bash
     sudo cp tu-servicio.service /etc/systemd/system/
