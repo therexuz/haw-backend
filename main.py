@@ -117,3 +117,13 @@ async def control_leds(set_status:str,led_id:str):
         return Response(content="Luz apagada correctamente", status_code=200)
     else:
         return Response(content="Error en la peticion, se esperaba ON o OFF.", status_code=400)
+    
+@app.post("/login/registrar-usuario")
+async def registrar_usuario(user_data):
+    # Almacena los datos en la base de datos SQLite
+    conn = sqlite3.connect("home_automation_wizard.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
+    # Almacena el último mensaje recibido en un diccionario global
+    conn.commit()
+    return Response(content="Usuario registrado con éxito", status_code=200)
