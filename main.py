@@ -1,9 +1,11 @@
 import paho.mqtt.client as mqtt
 import sqlite3
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
+from models import UserDataBase, UserDataCreate
+from contextlib import contextmanager
 
 app = FastAPI()
 broker = '192.168.1.83'
@@ -25,6 +27,17 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Función para crear una conexión a la base de datos
+@contextmanager
+def db_connection():
+    conn = sqlite3.connect('home_automation_wizard.db')
+    cursor = conn.cursor()
+    try:
+        yield cursor
+    finally:
+        conn.commit()
+        conn.close()
+
 def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
@@ -33,12 +46,12 @@ def on_message(client, userdata, message):
     # Obtener el timestamp actual en el formato deseado
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
-     # Almacena los datos en la base de datos SQLite
-    conn = sqlite3.connect("home_automation_wizard.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
-    # Almacena el último mensaje recibido en un diccionario global
-    conn.commit()
+    with db_connection() as cursor:
+
+        # Almacena los datos en la base de datos SQLite
+        cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
+        # Almacena el último mensaje recibido en un diccionario global
+
     ultimos_mensajes[topic] = mensaje_recibido
 
 # Configura el cliente MQTT
@@ -118,12 +131,18 @@ async def control_leds(set_status:str,led_id:str):
     else:
         return Response(content="Error en la peticion, se esperaba ON o OFF.", status_code=400)
     
-@app.post("/login/registrar-usuario")
-async def registrar_usuario(user_data):
-    # Almacena los datos en la base de datos SQLite
-    conn = sqlite3.connect("home_automation_wizard.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
-    # Almacena el último mensaje recibido en un diccionario global
-    conn.commit()
+@app.post("/login")
+async def registrar_usuario(user_data:UserDataCreate):
+
+    with db_connection() as cursor:
+
+        cursor.execute("SELECT id FROM user_data WHERE rut = ?", (user_data.rut,))
+        existing_user = cursor.fetchone()
+
+    if existing_user:
+        raise HTTPException(status_code=400,detail="Usuario ya registrado")
+    
+    with db_connection as cursor:
+        cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
+
     return Response(content="Usuario registrado con éxito", status_code=200)
