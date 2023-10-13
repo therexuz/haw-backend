@@ -58,6 +58,7 @@ ultimos_mensajes = {
     "humidity": "",
     "pressure": "",
     "air_quality":"",
+    "light":"",
     "test-result":"",
     "leds":"",
     "door":"",
@@ -88,8 +89,12 @@ async def read_temperature():
 async def read_humidity():
     return {"humedad": ultimos_mensajes["humidity"]}
 
+@app.get("/sensor-luz")
+async def read_humidity():
+    return {"light_sensor": ultimos_mensajes["light"]}
+
 # Endpoints de los actuadores
-@app.get("/encender_led={set_status}&{led_id}")
+@app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
 async def control_leds(set_status:str,led_id:str):
     if(set_status == "ON"):
         mqtt_client.publish("leds","ON " + led_id)
