@@ -132,7 +132,7 @@ async def control_leds(set_status:str,led_id:str):
         return Response(content="Error en la peticion, se esperaba ON o OFF.", status_code=400)
     
 @app.post("/login")
-async def registrar_usuario(user_data:UserDataCreate):
+async def login_or_create_user(user_data:UserDataCreate):
 
     with db_connection() as cursor:
 
