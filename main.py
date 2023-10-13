@@ -2,7 +2,6 @@ import paho.mqtt.client as mqtt
 import sqlite3
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from database import init_db
 import time
 
