@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import sqlite3
+import uvicorn
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
@@ -146,3 +147,6 @@ async def login_or_create_user(user_data:UserDataCreate):
         cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
 
     return Response(content="Usuario registrado con éxito", status_code=200)
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True,log_level="debug")
