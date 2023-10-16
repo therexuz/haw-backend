@@ -9,7 +9,7 @@ from contextlib import contextmanager
 import asyncio
 
 app = FastAPI()
-broker = '192.168.1.83'
+broker = '192.168.2.2'
 port = 1883
 
 manager = ConnectionManager()
