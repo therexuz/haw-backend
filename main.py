@@ -1,15 +1,18 @@
 import paho.mqtt.client as mqtt
 import sqlite3
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
-from models import UserDataBase, UserDataCreate
+from models import UserDataBase, UserDataCreate, SensorData, ConnectionManager
 from contextlib import contextmanager
+import asyncio
 
 app = FastAPI()
 broker = '192.168.1.83'
 port = 1883
+
+manager = ConnectionManager()
 
 init_db()
 
@@ -95,30 +98,64 @@ ultimos_mensajes = {
 @app.get("/test-mqtt-protocol")
 async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
-    time.sleep(1) # wait
     return {"test-result":ultimos_mensajes["test-result"]}
 
 # Endpoints de los sensores
-@app.get("/temperatura")
-async def read_temperature():
-    return {"temperatura": ultimos_mensajes["temperature"]}
+@app.websocket("/temperatura")
+async def read_temperature(websocket:WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
+            await manager.broadcast(data)
+            await asyncio.sleep(5)
+    except:
+        manager.disconnect(websocket)
 
-@app.get("/calidad-aire")
-async def read_air_quality():
-    return {"calidad_aire": ultimos_mensajes["air_quality"]}
+@app.websocket("/calidad-aire")
+async def read_air_quality(websocket:WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
+            await manager.broadcast(data)
+            await asyncio.sleep(5)
+    except:
+        manager.disconnect(websocket)
 
-@app.get("/presion-atm")
-async def read_atm_pressure():
-    return {"presion_atm": ultimos_mensajes["pressure"]}
+@app.websocket("/presion-atm")
+async def read_atm_pressure(websocket:WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
+            await manager.broadcast(data)
+            await asyncio.sleep(5)
+    except:
+        manager.disconnect(websocket)
 
-@app.get("/humedad")
-async def read_humidity():
-    return {"humedad": ultimos_mensajes["humidity"]}
+@app.websocket("/humedad")
+async def read_humidity(websocket:WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
+            await manager.broadcast(data)
+            await asyncio.sleep(5)
+    except:
+        manager.disconnect(websocket)
 
-@app.get("/sensor-luz")
-async def read_light_level():
-    return {"light_sensor": ultimos_mensajes["light"]}
-
+@app.websocket("/sensor-luz")
+async def read_light_level(websocket:WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
+            await manager.broadcast(data)
+            await asyncio.sleep(5)
+    except:
+        manager.disconnect(websocket)
+        
 # Endpoints de los actuadores
 @app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
 async def control_leds(set_status:str,led_id:str):
