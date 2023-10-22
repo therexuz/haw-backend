@@ -161,18 +161,15 @@ async def read_light_level(websocket:WebSocket):
         manager.disconnect(websocket)
         
 # Endpoints de los actuadores
-@app.get("/controlar_leds/")
-async def control_leds(set_status: str, led_id: str, response: Response):
-    if set_status.upper() == "ON":
-        mqtt_client.publish("leds", "ON " + led_id)
-        response.status_code = 200
+@app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
+async def control_leds(set_status:str,led_id:str):
+    if(set_status == "ON"):
+        mqtt_client.publish("leds","ON " + led_id)
         return {"message": "Luz encendida correctamente"}
-    elif set_status.upper() == "OFF":
-        mqtt_client.publish("leds", "OFF" + led_id)
-        response.status_code = 200
+    elif (set_status == "OFF"):
+        mqtt_client.publish("leds","OFF " + led_id)
         return {"message": "Luz apagada correctamente"}
     else:
-        response.status_code = 400
         return {"message": "Error en la petición, se esperaba ON o OFF."}
     
 @app.post("/login")
