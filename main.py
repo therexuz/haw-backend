@@ -1,3 +1,4 @@
+import json
 import paho.mqtt.client as mqtt
 import sqlite3
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
@@ -7,6 +8,7 @@ import time
 from models import UserDataBase, UserDataCreate, SensorData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
+from pydantic import BaseModel
 
 app = FastAPI()
 broker = '192.168.2.1'
@@ -59,7 +61,11 @@ def on_message(client, userdata, message):
         cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
         # Almacena el último mensaje recibido en un diccionario global
 
-    ultimos_mensajes[topic] = mensaje_recibido
+    if(topic == "leds"):
+        mensaje_recibido_json = json.loads(mensaje_recibido)
+        ultimos_mensajes["leds_status"][(mensaje_recibido_json['led_id'])] = (mensaje_recibido_json['set_status'])
+    else:
+        ultimos_mensajes[topic] = mensaje_recibido
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -95,7 +101,8 @@ ultimos_mensajes = {
     "test-result":"",
     "leds":"",
     "door":"",
-    "ventilation":""
+    "ventilation":"",
+    "leds_status":{}
 }
 
 # Endpoint para testear conexión mqtt
@@ -103,6 +110,10 @@ ultimos_mensajes = {
 async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
     return {"test-result":ultimos_mensajes["test-result"]}
+
+@app.get("/estado-leds")
+async def estado_leds():
+    return {"leds_status":ultimos_mensajes["leds_status"]}
 
 # Endpoints de los sensores
 @app.websocket("/temperatura")
@@ -163,11 +174,14 @@ async def read_light_level(websocket:WebSocket):
 # Endpoints de los actuadores
 @app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
 async def control_leds(set_status:str,led_id:str):
+    MQTT_MSG = json.dumps(
+        {"set_status":set_status,"led_id":led_id},separators=(',', ':')
+    )
     if(set_status == "ON"):
-        mqtt_client.publish("leds","ON " + led_id)
+        mqtt_client.publish("leds",MQTT_MSG)
         return {"message": "Luz encendida correctamente"}
     elif (set_status == "OFF"):
-        mqtt_client.publish("leds","OFF " + led_id)
+        mqtt_client.publish("leds",MQTT_MSG)
         return {"message": "Luz apagada correctamente"}
     else:
         return {"message": "Error en la petición, se esperaba ON o OFF."}
