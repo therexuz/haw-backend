@@ -13,6 +13,17 @@ def init_db():
         )
         """
     )
+    
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS actuadores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_led TEXT,
+            topic TEXT,
+            status INTEGER
+        )
+        """
+    )
 
     cursor.execute(
         """

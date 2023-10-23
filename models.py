@@ -20,6 +20,11 @@ class SensorData(BaseModel):
     topic:str
     measure_time:str
     value:str
+    
+class ActuadorData(BaseModel):
+    led_id:str
+    set_status:str
+    topic:str
 
 class ConnectionManager:
     def __init__(self):

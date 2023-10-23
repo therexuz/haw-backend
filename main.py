@@ -14,6 +14,9 @@ app = FastAPI()
 broker = '192.168.2.1'
 port = 1883
 
+actuadores = ['leds','door','ventilation']
+sensores = ['temperature','humidity','pressure','air_quality','light'] ## TODO:
+
 manager = ConnectionManager()
 
 init_db()
@@ -51,21 +54,29 @@ def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
-
-    # Obtener el timestamp actual en el formato deseado
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-
+    
     with db_connection() as cursor:
+        if topic in actuadores:
+            if (topic == "leds"):
+                print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                mensaje_recibido_led = json.loads(mensaje_recibido)
+                ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
+                # comprobar si existe o no en la base de datos
+                cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_led['led_id'],))
+                existing_led = cursor.fetchone()
+                if existing_led:
+                    cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
+                else:
+                    cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
+        else:
+            # Obtener el timestamp actual en el formato deseado
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Almacena los datos en la base de datos SQLite
+            cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
+            # Almacena el último mensaje recibido en un diccionario global
 
-        # Almacena los datos en la base de datos SQLite
-        cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
-        # Almacena el último mensaje recibido en un diccionario global
-
-    if(topic == "leds"):
-        mensaje_recibido_json = json.loads(mensaje_recibido)
-        ultimos_mensajes["leds_status"][(mensaje_recibido_json['led_id'])] = (mensaje_recibido_json['set_status'])
-    else:
-        ultimos_mensajes[topic] = mensaje_recibido
+            ultimos_mensajes[topic] = mensaje_recibido
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -113,7 +124,14 @@ async def test_mqtt_protocol():
 
 @app.get("/estado-leds")
 async def estado_leds():
+    # Estado de leds en la base de datos de actuadores
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM actuadores WHERE topic = 'leds'")
+        leds_status = cursor.fetchall()
+        for led in leds_status:
+            ultimos_mensajes["leds_status"][led[1]] = led[3]
     return {"leds_status":ultimos_mensajes["leds_status"]}
+
 
 # Endpoints de los sensores
 @app.websocket("/temperatura")
