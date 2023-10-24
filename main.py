@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
 import sqlite3
@@ -128,7 +129,7 @@ async def estado_leds():
 
 
 # Endpoints de los sensores
-@app.websocket("/temperatura")
+@app.websocket("/temperature")
 async def read_temperature(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -138,8 +139,30 @@ async def read_temperature(websocket:WebSocket):
             await asyncio.sleep(5)
     except:
         manager.disconnect(websocket)
+        
+# obtener los datos de la ultima hora de datos de temperature
+@app.get("/datos/tipo-sensor={tipo}")
+async def get_last_hour_temperature(tipo:str):
+    with db_connection() as cursor:
+        hora_hace_una_hora = datetime.now() - timedelta(minutes=5)
+        hora_hace_una_hora_str = hora_hace_una_hora.strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute("SELECT topic, time(timestamp), value FROM sensor_data WHERE topic = ? AND timestamp BETWEEN ? AND ?",
+               (tipo, hora_hace_una_hora_str, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        
+        # Obtener los nombres de las columnas
+        column_names = [description[0] for description in cursor.description if description[0] != 'id']
 
-@app.websocket("/calidad-aire")
+        # Obtener los resultados de la consulta
+        results = cursor.fetchall()
+
+        # Formatear los resultados como un diccionario
+        formatted_results = []
+        for row in results:
+            row_dict = dict(zip(column_names, row))
+            formatted_results.append(row_dict)
+        return {"last_hour_data":formatted_results}
+
+@app.websocket("/air_quality")
 async def read_air_quality(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -161,7 +184,7 @@ async def read_atm_pressure(websocket:WebSocket):
     except:
         manager.disconnect(websocket)
 
-@app.websocket("/humedad")
+@app.websocket("/humidity")
 async def read_humidity(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -172,7 +195,7 @@ async def read_humidity(websocket:WebSocket):
     except:
         manager.disconnect(websocket)
 
-@app.websocket("/sensor-luz")
+@app.websocket("/light")
 async def read_light_level(websocket:WebSocket):
     await manager.connect(websocket)
     try:
