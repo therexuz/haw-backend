@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+import json
 import paho.mqtt.client as mqtt
 import sqlite3
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
@@ -7,22 +9,21 @@ import time
 from models import UserDataBase, UserDataCreate, SensorData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
+from pydantic import BaseModel
 
 app = FastAPI()
 broker = '192.168.2.1'
 port = 1883
+
+actuadores = ['leds','door','ventilation']
+sensores = ['temperature','humidity','pressure','air_quality','light'] ## TODO:
 
 manager = ConnectionManager()
 
 init_db()
 
 origins =  [
-    "http://192.168.2.1:8080",
-    "http://192.168.2.2:8080",
-    "http://192.168.1.92:4200",
-    "http://192.168.2.2:80",
-    "http://192.168.2.1:80",
-    "http://192.168.1.91:80"
+    "*"
 ]
 
 app.add_middleware(
@@ -48,17 +49,29 @@ def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
-
-    # Obtener el timestamp actual en el formato deseado
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-
+    
     with db_connection() as cursor:
+        if topic in actuadores:
+            if (topic == "leds"):
+                print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                mensaje_recibido_led = json.loads(mensaje_recibido)
+                ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
+                # comprobar si existe o no en la base de datos
+                cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_led['led_id'],))
+                existing_led = cursor.fetchone()
+                if existing_led:
+                    cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
+                else:
+                    cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
+        else:
+            # Obtener el timestamp actual en el formato deseado
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Almacena los datos en la base de datos SQLite
+            cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
+            # Almacena el último mensaje recibido en un diccionario global
 
-        # Almacena los datos en la base de datos SQLite
-        cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
-        # Almacena el último mensaje recibido en un diccionario global
-
-    ultimos_mensajes[topic] = mensaje_recibido
+            ultimos_mensajes[topic] = mensaje_recibido
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -94,7 +107,8 @@ ultimos_mensajes = {
     "test-result":"",
     "leds":"",
     "door":"",
-    "ventilation":""
+    "ventilation":"",
+    "leds_status":{}
 }
 
 # Endpoint para testear conexión mqtt
@@ -103,8 +117,19 @@ async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
     return {"test-result":ultimos_mensajes["test-result"]}
 
+@app.get("/estado-leds")
+async def estado_leds():
+    # Estado de leds en la base de datos de actuadores
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM actuadores WHERE topic = 'leds'")
+        leds_status = cursor.fetchall()
+        for led in leds_status:
+            ultimos_mensajes["leds_status"][led[1]] = led[3]
+    return {"leds_status":ultimos_mensajes["leds_status"]}
+
+
 # Endpoints de los sensores
-@app.websocket("/temperatura")
+@app.websocket("/temperature")
 async def read_temperature(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -114,8 +139,30 @@ async def read_temperature(websocket:WebSocket):
             await asyncio.sleep(5)
     except:
         manager.disconnect(websocket)
+        
+# obtener los datos de la ultima hora de datos de temperature
+@app.get("/datos/tipo-sensor={tipo}")
+async def get_last_hour_temperature(tipo:str):
+    with db_connection() as cursor:
+        hora_hace_una_hora = datetime.now() - timedelta(minutes=5)
+        hora_hace_una_hora_str = hora_hace_una_hora.strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute("SELECT topic, time(timestamp), value FROM sensor_data WHERE topic = ? AND timestamp BETWEEN ? AND ?",
+               (tipo, hora_hace_una_hora_str, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        
+        # Obtener los nombres de las columnas
+        column_names = [description[0] for description in cursor.description if description[0] != 'id']
 
-@app.websocket("/calidad-aire")
+        # Obtener los resultados de la consulta
+        results = cursor.fetchall()
+
+        # Formatear los resultados como un diccionario
+        formatted_results = []
+        for row in results:
+            row_dict = dict(zip(column_names, row))
+            formatted_results.append(row_dict)
+        return {"last_hour_data":formatted_results}
+
+@app.websocket("/air_quality")
 async def read_air_quality(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -137,7 +184,7 @@ async def read_atm_pressure(websocket:WebSocket):
     except:
         manager.disconnect(websocket)
 
-@app.websocket("/humedad")
+@app.websocket("/humidity")
 async def read_humidity(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -148,7 +195,7 @@ async def read_humidity(websocket:WebSocket):
     except:
         manager.disconnect(websocket)
 
-@app.websocket("/sensor-luz")
+@app.websocket("/light")
 async def read_light_level(websocket:WebSocket):
     await manager.connect(websocket)
     try:
@@ -162,14 +209,17 @@ async def read_light_level(websocket:WebSocket):
 # Endpoints de los actuadores
 @app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
 async def control_leds(set_status:str,led_id:str):
+    MQTT_MSG = json.dumps(
+        {"set_status":set_status,"led_id":led_id},separators=(',', ':')
+    )
     if(set_status == "ON"):
-        mqtt_client.publish("leds","ON " + led_id)
-        return Response(content="Luz encendida correctamente", status_code=200)
+        mqtt_client.publish("leds",MQTT_MSG)
+        return {"message": "Luz encendida correctamente"}
     elif (set_status == "OFF"):
-        mqtt_client.publish("leds","OFF " + led_id)
-        return Response(content="Luz apagada correctamente", status_code=200)
+        mqtt_client.publish("leds",MQTT_MSG)
+        return {"message": "Luz apagada correctamente"}
     else:
-        return Response(content="Error en la peticion, se esperaba ON o OFF.", status_code=400)
+        return {"message": "Error en la petición, se esperaba ON o OFF."}
     
 @app.post("/login")
 async def login_or_create_user(user_data:UserDataCreate):
