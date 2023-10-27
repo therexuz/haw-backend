@@ -137,7 +137,7 @@ async def read_temperature(websocket:WebSocket):
             data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
         
 # obtener los datos de la ultima hora de datos de temperature
@@ -148,18 +148,14 @@ async def get_last_hour_temperature(tipo:str):
         hora_hace_una_hora_str = hora_hace_una_hora.strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute("SELECT topic, time(timestamp), value FROM sensor_data WHERE topic = ? AND timestamp BETWEEN ? AND ?",
                (tipo, hora_hace_una_hora_str, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        
+
         # Obtener los nombres de las columnas
         column_names = [description[0] for description in cursor.description if description[0] != 'id']
 
         # Obtener los resultados de la consulta
         results = cursor.fetchall()
 
-        # Formatear los resultados como un diccionario
-        formatted_results = []
-        for row in results:
-            row_dict = dict(zip(column_names, row))
-            formatted_results.append(row_dict)
+        formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
 
 @app.websocket("/air_quality")
@@ -170,7 +166,7 @@ async def read_air_quality(websocket:WebSocket):
             data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/presion-atm")
@@ -181,7 +177,7 @@ async def read_atm_pressure(websocket:WebSocket):
             data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/humidity")
@@ -192,7 +188,7 @@ async def read_humidity(websocket:WebSocket):
             data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/light")
@@ -203,7 +199,7 @@ async def read_light_level(websocket:WebSocket):
             data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
         
 # Endpoints de los actuadores
