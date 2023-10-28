@@ -217,6 +217,20 @@ async def control_leds(set_status:str,led_id:str):
     else:
         return {"message": "Error en la petición, se esperaba ON o OFF."}
     
+@app.get("/controlar_puerta/set_status={set_status}&puerta_id={puerta_id}")
+async def controlar_puerta(set_status:str,puerta_id:str):
+    MQTT_MSG = json.dumps(
+        {"set_status":set_status,"puerta_id":puerta_id},separators=(',', ':')
+    )
+    if(set_status == "OPEN"):
+        mqtt_client.publish("door",MQTT_MSG)
+        return {"message": "Puerta abierta correctamente"}
+    elif (set_status == "CLOSE"):
+        mqtt_client.publish("door",MQTT_MSG)
+        return {"message": "Puerta cerrada correctamente"}
+    else:
+        return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
+    
 @app.post("/login")
 async def login_or_create_user(user_data:UserDataCreate):
 
