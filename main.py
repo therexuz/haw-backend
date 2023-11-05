@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDiscon
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
-from models import UserDataBase, UserDataCreate, SensorData, ConnectionManager
+from models import EstudianteData, UserDataBase, UserDataCreate, SensorData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
 from pydantic import BaseModel
@@ -63,6 +63,16 @@ def on_message(client, userdata, message):
                     cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
                 else:
                     cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
+            elif (topic == "door"):
+                print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                mensaje_recibido_puerta = json.loads(mensaje_recibido)
+                # comprobar si existe o no en la base de datos
+                cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
+                existing_puerta = cursor.fetchone()
+                if existing_puerta:
+                    cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
+                else:
+                    cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
         else:
             # Obtener el timestamp actual en el formato deseado
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -137,7 +147,7 @@ async def read_temperature(websocket:WebSocket):
             data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
         
 # obtener los datos de la ultima hora de datos de temperature
@@ -148,18 +158,14 @@ async def get_last_hour_temperature(tipo:str):
         hora_hace_una_hora_str = hora_hace_una_hora.strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute("SELECT topic, time(timestamp), value FROM sensor_data WHERE topic = ? AND timestamp BETWEEN ? AND ?",
                (tipo, hora_hace_una_hora_str, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        
+
         # Obtener los nombres de las columnas
         column_names = [description[0] for description in cursor.description if description[0] != 'id']
 
         # Obtener los resultados de la consulta
         results = cursor.fetchall()
 
-        # Formatear los resultados como un diccionario
-        formatted_results = []
-        for row in results:
-            row_dict = dict(zip(column_names, row))
-            formatted_results.append(row_dict)
+        formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
 
 @app.websocket("/air_quality")
@@ -170,7 +176,7 @@ async def read_air_quality(websocket:WebSocket):
             data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/presion-atm")
@@ -181,7 +187,7 @@ async def read_atm_pressure(websocket:WebSocket):
             data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/humidity")
@@ -192,7 +198,7 @@ async def read_humidity(websocket:WebSocket):
             data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
 
 @app.websocket("/light")
@@ -203,7 +209,7 @@ async def read_light_level(websocket:WebSocket):
             data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
             await manager.broadcast(data)
             await asyncio.sleep(5)
-    except:
+    except Exception:
         manager.disconnect(websocket)
         
 # Endpoints de los actuadores
@@ -221,18 +227,80 @@ async def control_leds(set_status:str,led_id:str):
     else:
         return {"message": "Error en la petición, se esperaba ON o OFF."}
     
-@app.post("/login")
-async def login_or_create_user(user_data:UserDataCreate):
+@app.get("/controlar_puerta/set_status={set_status}&puerta_id={puerta_id}")
+async def controlar_puerta(set_status:str,puerta_id:str):
+    MQTT_MSG = json.dumps(
+        {"set_status":set_status,"puerta_id":puerta_id},separators=(',', ':')
+    )
+    if(set_status == "OPEN"):
+        mqtt_client.publish("door",MQTT_MSG)
+        return {"message": "Puerta abierta correctamente"}
+    elif (set_status == "CLOSE"):
+        mqtt_client.publish("door",MQTT_MSG)
+        return {"message": "Puerta cerrada correctamente"}
+    else:
+        return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
+        
+@app.post("/usuarios/verificar-usuario")
+async def verificar_usuario(usuario: EstudianteData):
+    # Conéctate a la base de datos SQLite
+    conn = sqlite3.connect('home_automation_wizard.db')
+    cursor = conn.cursor()
 
-    with db_connection() as cursor:
-
-        cursor.execute("SELECT id FROM user_data WHERE rut = ?", (user_data.rut,))
-        existing_user = cursor.fetchone()
+    # Verifica si el usuario ya existe en la base de datos
+    cursor.execute('SELECT * FROM estudiante WHERE rut=?', (usuario.rut,))
+    existing_user = cursor.fetchone()
 
     if existing_user:
-        raise HTTPException(status_code=400,detail="Usuario ya registrado")
-    
-    with db_connection as cursor:
-        cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
+        # Si el usuario ya existe, notifica que ya existe
+        conn.close()
+        return {"mensaje": "El usuario ya existe en la base de datos.", "tipo": "Encontrado"}
+    else:
+        # Si el usuario no existe, agrégalo a la base de datos
+        cursor.execute('INSERT INTO estudiante (rut, nombre, apellido, correo) VALUES (?, ?, ?, ?)',
+                       (usuario.rut, usuario.nombre, usuario.apellido, usuario.correo))
+        conn.commit()
+        conn.close()
 
-    return Response(content="Usuario registrado con éxito", status_code=200)
+        # Notifica que el usuario fue agregado exitosamente
+        return {"mensaje": "Usuario agregado exitosamente.", "tipo": "Creado"}
+
+# obtener todas las preguntas
+@app.get("/preguntas")
+async def get_preguntas():
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM preguntas")
+        preguntas = cursor.fetchall()
+        column_names = [desc[0] for desc in cursor.description]  # Obtiene los nombres de las columnas
+        preguntas_data = []
+        for pregunta in preguntas:
+            pregunta_dict = dict(zip(column_names, pregunta))  # Combina los nombres de las columnas con los datos
+            preguntas_data.append(pregunta_dict)
+        return {"columnas": column_names, "preguntas": preguntas_data}
+    
+# Pregunta respondida por estudiante
+@app.post("/preguntas/actualizar")
+async def responder_pregunta(datos: dict):
+    pregunta_id = datos.get('preguntaId')
+    rut_usuario = datos.get('rutUsuario')
+    if not pregunta_id or not rut_usuario:
+        return {"mensaje": "Faltan datos en la petición.", "tipo": "Error"}
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM respuestas WHERE id_pregunta = ? AND rut = ?", (pregunta_id, rut_usuario))
+        respuesta = cursor.fetchone()
+        if respuesta:
+            return {"mensaje": "El usuario ya ha respondido esta pregunta.", "tipo": "Encontrado"}
+        else:
+            cursor.execute("INSERT INTO respuestas (rut, id_pregunta, respuesta) VALUES (?, ?, ?)", (rut_usuario, pregunta_id, True))
+            return {"mensaje": "Respuesta agregada exitosamente.", "tipo": "Creado"}
+        
+# obtener todas las respuestas
+@app.get("/respuestas/{rutEstudiante}")
+async def get_respuestas(rutEstudiante:str):
+    with db_connection() as cursor:
+        cursor.execute("SELECT id_pregunta FROM respuestas WHERE rut = ?", (rutEstudiante,))
+        respuestas = cursor.fetchall()
+    
+    respuestas_lista = [respuesta[0] for respuesta in respuestas]
+    print("respuestas",respuestas_lista)
+    return {"respuestas":respuestas_lista}

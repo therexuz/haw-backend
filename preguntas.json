@@ -1,0 +1,197 @@
+[
+  {
+    "id": 1,
+    "tipo": "sensor",
+    "pregunta": "¿Qué es un sensor?",
+    "respuesta": "Un sensor es un dispositivo que detecta un cambio en su entorno y responde a él.",
+    "alternativas": [
+      "Un sensor es un dispositivo que detecta un cambio en su entorno y responde a él.",
+      "Un sensor es un dispositivo que detecta un cambio en su entorno y no responde a él.",
+      "Un sensor es un dispositivo que no detecta un cambio en su entorno y responde a él.",
+      "Un sensor es un dispositivo que no detecta un cambio en su entorno y no responde a él."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 2,
+    "tipo": "sensor",
+    "pregunta": "¿Cómo se conecta el sensor al sistema IoT?",
+    "respuesta": "El sensor se conecta al sistema IoT a través de un microcontrolador.",
+    "alternativas": [
+      "El sensor se conecta al sistema IoT a través de un microcontrolador.",
+      "El sensor se conecta al sistema IoT a través de un microprocesador.",
+      "El sensor se conecta al sistema IoT a través de un microchip.",
+      "El sensor se conecta al sistema IoT a través de un microcircuito."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 3,
+    "tipo": "sensor",
+    "pregunta": "¿Qué es un microcontrolador?",
+    "respuesta": "Un microcontrolador es un circuito integrado programable, capaz de ejecutar las órdenes grabadas en su memoria.",
+    "alternativas": [
+      "Un microcontrolador es un circuito integrado programable, capaz de ejecutar las órdenes grabadas en su memoria.",
+      "Un microcontrolador es un circuito integrado programable, capaz de ejecutar las órdenes grabadas en su disco duro.",
+      "Un microcontrolador es un circuito integrado programable, capaz de ejecutar las órdenes grabadas en su memoria RAM.",
+      "Un microcontrolador es un circuito integrado programable, capaz de ejecutar las órdenes grabadas en su memoria ROM."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 4,
+    "tipo": "actuador",
+    "pregunta": "¿Qué es un actuador?",
+    "respuesta": "Un actuador es un dispositivo que transforma la energía en movimiento.",
+    "alternativas": [
+      "Un actuador es un dispositivo que transforma la energía en movimiento.",
+      "Un actuador es un dispositivo que transforma el movimiento en energía.",
+      "Un actuador es un dispositivo que transforma la energía en calor.",
+      "Un actuador es un dispositivo que transforma el calor en energía."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 5,
+    "tipo": "actuador",
+    "pregunta": "¿Cómo se conecta el actuador al sistema IoT?",
+    "respuesta": "El actuador se conecta al sistema IoT a través de un microcontrolador.",
+    "alternativas": [
+      "El actuador se conecta al sistema IoT a través de un microcontrolador.",
+      "El actuador se conecta al sistema IoT a través de un microprocesador.",
+      "El actuador se conecta al sistema IoT a través de un microchip.",
+      "El actuador se conecta al sistema IoT a través de un microcircuito."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 6,
+    "tipo": "actuador",
+    "pregunta": "¿Cuál es la relación entre el actuador y el protocolo MQTT?",
+    "respuesta": "El actuador se suscribe a un tópico MQTT para recibir mensajes.",
+    "alternativas": [
+      "El actuador se suscribe a un tópico MQTT para recibir mensajes.",
+      "El actuador se suscribe a un tópico MQTT para enviar mensajes.",
+      "El actuador se publica a un tópico MQTT para recibir mensajes.",
+      "El actuador se publica a un tópico MQTT para enviar mensajes."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 7,
+    "tipo": "wikiiot",
+    "pregunta": "¿Qué es un sistema IoT?",
+    "respuesta": "Un sistema IoT es un sistema de sistemas.",
+    "alternativas": [
+      "Un sistema IoT es un sistema de sistemas.",
+      "Un sistema IoT es un sistema de sensores.",
+      "Un sistema IoT es un sistema de actuadores.",
+      "Un sistema IoT es un sistema de microcontroladores."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 8,
+    "tipo": "wikiiot",
+    "pregunta": "¿Qué es un sistema de sistemas?",
+    "respuesta": "Un sistema de sistemas es un sistema cuyos componentes son sistemas.",
+    "alternativas": [
+      "Un sistema de sistemas es un sistema cuyos componentes son sistemas.",
+      "Un sistema de sistemas es un sistema cuyos componentes son sensores.",
+      "Un sistema de sistemas es un sistema cuyos componentes son actuadores.",
+      "Un sistema de sistemas es un sistema cuyos componentes son microcontroladores."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 9,
+    "tipo": "wikiiot",
+    "pregunta": "¿Qué es un sistema?",
+    "respuesta": "Un sistema es un conjunto de elementos que interactúan entre sí.",
+    "alternativas": [
+      "Un sistema es un conjunto de elementos que interactúan entre sí.",
+      "Un sistema es un conjunto de elementos que no interactúan entre sí.",
+      "Un sistema es un conjunto de elementos que interactúan con el entorno.",
+      "Un sistema es un conjunto de elementos que no interactúan con el entorno."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 10,
+    "tipo": "wikiiot",
+    "pregunta": "¿En qué consiste el protocolo MQTT para IoT?",
+    "respuesta": "MQTT es un protocolo de comunicación ligero para IoT.",
+    "alternativas": [
+      "MQTT es un protocolo de comunicación ligero para IoT.",
+      "MQTT es un protocolo de comunicación pesado para IoT.",
+      "MQTT es un protocolo de comunicación ligero para IoT y no IoT.",
+      "MQTT es un protocolo de comunicación pesado para IoT y no IoT."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 11,
+    "tipo": "wikiiot",
+    "pregunta": "¿Qué es un protocolo de comunicación?",
+    "respuesta": "Un protocolo de comunicación es un conjunto de reglas que permiten la comunicación entre dos o más sistemas.",
+    "alternativas": [
+      "Un protocolo de comunicación es un conjunto de reglas que permiten la comunicación entre dos o más sistemas.",
+      "Un protocolo de comunicación es un conjunto de reglas que permiten la comunicación entre dos o más sensores.",
+      "Un protocolo de comunicación es un conjunto de reglas que permiten la comunicación entre dos o más actuadores.",
+      "Un protocolo de comunicación es un conjunto de reglas que permiten la comunicación entre dos o más microcontroladores."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 12,
+    "tipo": "wikiiot",
+    "pregunta": "¿Qué otros protocolos de comunicación existen para un sistema IoT?",
+    "respuesta": "Existen otros protocolos de comunicación como HTTP, CoAP, AMQP, XMPP, DDS, etc.",
+    "alternativas": [
+      "Existen otros protocolos de comunicación como HTTP, CoAP, AMQP, XMPP, DDS, etc.",
+      "Existen otros protocolos de comunicación como HTTP, CoAP, AMQP, XMPP, DDS, etc. y otros.",
+      "Existen otros protocolos de comunicación como HTTP, CoAP, AMQP, XMPP, DDS, etc. y otros más.",
+      "Existen otros protocolos de comunicación como HTTP, CoAP, AMQP, XMPP, DDS, etc. y otros muchos."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 13,
+    "tipo": "sensor",
+    "pregunta": "Cuál de los siguientes componentes no corresponde a un sensor: ",
+    "respuesta": "Microcontrolador.",
+    "alternativas": [
+      "Sensor de humedad.",
+      "Fotoresistencia.",
+      "Microcontrolador.",
+      "Sensor de temperatura."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 14,
+    "tipo": "actuador",
+    "pregunta": "Cuál de los siguientes componentes no corresponde a un actuador: ",
+    "respuesta": "Microcontrolador.",
+    "alternativas": [
+      "Led.",
+      "Buzzer.",
+      "Microcontrolador.",
+      "Motor."
+    ],
+    "respondida": false
+  },
+  {
+    "id": 15,
+    "tipo": "actuador",
+    "pregunta": "Qué diferencia a un actuador de un sensor: ",
+    "respuesta": "Un actuador transforma la energía en movimiento.",
+    "alternativas": [
+      "Un actuador transforma la energía en movimiento.",
+      "Un actuador transforma el movimiento en energía.",
+      "Un actuador transforma la energía en calor.",
+      "Un actuador transforma el calor en energía."
+    ],
+    "respondida": false
+  }
+]
