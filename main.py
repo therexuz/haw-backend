@@ -243,7 +243,6 @@ async def controlar_puerta(set_status:str,puerta_id:str):
         
 @app.post("/usuarios/verificar-usuario")
 async def verificar_usuario(usuario: EstudianteData):
-    print(usuario)
     # Conéctate a la base de datos SQLite
     conn = sqlite3.connect('home_automation_wizard.db')
     cursor = conn.cursor()
@@ -294,3 +293,14 @@ async def responder_pregunta(datos: dict):
         else:
             cursor.execute("INSERT INTO respuestas (rut, id_pregunta, respuesta) VALUES (?, ?, ?)", (rut_usuario, pregunta_id, True))
             return {"mensaje": "Respuesta agregada exitosamente.", "tipo": "Creado"}
+        
+# obtener todas las respuestas
+@app.get("/respuestas/{rutEstudiante}")
+async def get_respuestas(rutEstudiante:str):
+    with db_connection() as cursor:
+        cursor.execute("SELECT id_pregunta FROM respuestas WHERE rut = ?", (rutEstudiante,))
+        respuestas = cursor.fetchall()
+    
+    respuestas_lista = [respuesta[0] for respuesta in respuestas]
+    print("respuestas",respuestas_lista)
+    return {"respuestas":respuestas_lista}
