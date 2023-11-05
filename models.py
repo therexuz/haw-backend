@@ -1,20 +1,20 @@
+from typing import Optional
 from pydantic import BaseModel
 from fastapi import WebSocket
 import time
 
 class UserDataBase(BaseModel):
     rut: str
-    digito_verificador: int
     nombre: str
     apellido: str
-    email: str
+    correo: Optional[str] = None
 
 class UserDataCreate(UserDataBase):
     pass
 
-class UserData(UserDataBase):
-    class Config:
-        orm_mode = True
+# class UserData(UserDataBase):
+#     class Config:
+#         orm_mode = True
 
 class SensorData(BaseModel):
     topic:str
@@ -25,6 +25,23 @@ class ActuadorData(BaseModel):
     led_id:str
     set_status:str
     topic:str
+    
+class EstudianteData(BaseModel):
+    rut:str
+    nombre:str
+    apellido:str
+    correo:Optional[str] = None
+    
+class PreguntaData(BaseModel):
+    tipo:str
+    pregunta:str
+    respuesta:str
+    alternativas:str
+
+class RespuestaData(BaseModel):
+    rut:str
+    id_pregunta:int
+    respuesta:bool
 
 class ConnectionManager:
     def __init__(self):

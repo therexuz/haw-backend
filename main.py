@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDiscon
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
-from models import UserDataBase, UserDataCreate, SensorData, ConnectionManager
+from models import EstudianteData, UserDataBase, UserDataCreate, SensorData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
 from pydantic import BaseModel
@@ -240,19 +240,57 @@ async def controlar_puerta(set_status:str,puerta_id:str):
         return {"message": "Puerta cerrada correctamente"}
     else:
         return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
-    
-@app.post("/login")
-async def login_or_create_user(user_data:UserDataCreate):
+        
+@app.post("/usuarios/verificar-usuario")
+async def verificar_usuario(usuario: EstudianteData):
+    print(usuario)
+    # Conéctate a la base de datos SQLite
+    conn = sqlite3.connect('home_automation_wizard.db')
+    cursor = conn.cursor()
 
-    with db_connection() as cursor:
-
-        cursor.execute("SELECT id FROM user_data WHERE rut = ?", (user_data.rut,))
-        existing_user = cursor.fetchone()
+    # Verifica si el usuario ya existe en la base de datos
+    cursor.execute('SELECT * FROM estudiante WHERE rut=?', (usuario.rut,))
+    existing_user = cursor.fetchone()
 
     if existing_user:
-        raise HTTPException(status_code=400,detail="Usuario ya registrado")
-    
-    with db_connection as cursor:
-        cursor.execute("INSERT INTO user_data (rut, digito_verificador, nombre, apellido, email) VALUES (?, ?, ?, ?, ?)", (user_data.rut, user_data.digito_verificador, user_data.nombre,user_data.apellido,user_data.email))
+        # Si el usuario ya existe, notifica que ya existe
+        conn.close()
+        return {"mensaje": "El usuario ya existe en la base de datos.", "tipo": "Encontrado"}
+    else:
+        # Si el usuario no existe, agrégalo a la base de datos
+        cursor.execute('INSERT INTO estudiante (rut, nombre, apellido, correo) VALUES (?, ?, ?, ?)',
+                       (usuario.rut, usuario.nombre, usuario.apellido, usuario.correo))
+        conn.commit()
+        conn.close()
 
-    return Response(content="Usuario registrado con éxito", status_code=200)
+        # Notifica que el usuario fue agregado exitosamente
+        return {"mensaje": "Usuario agregado exitosamente.", "tipo": "Creado"}
+
+# obtener todas las preguntas
+@app.get("/preguntas")
+async def get_preguntas():
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM preguntas")
+        preguntas = cursor.fetchall()
+        column_names = [desc[0] for desc in cursor.description]  # Obtiene los nombres de las columnas
+        preguntas_data = []
+        for pregunta in preguntas:
+            pregunta_dict = dict(zip(column_names, pregunta))  # Combina los nombres de las columnas con los datos
+            preguntas_data.append(pregunta_dict)
+        return {"columnas": column_names, "preguntas": preguntas_data}
+    
+# Pregunta respondida por estudiante
+@app.post("/preguntas/actualizar")
+async def responder_pregunta(datos: dict):
+    pregunta_id = datos.get('preguntaId')
+    rut_usuario = datos.get('rutUsuario')
+    if not pregunta_id or not rut_usuario:
+        return {"mensaje": "Faltan datos en la petición.", "tipo": "Error"}
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM respuestas WHERE id_pregunta = ? AND rut = ?", (pregunta_id, rut_usuario))
+        respuesta = cursor.fetchone()
+        if respuesta:
+            return {"mensaje": "El usuario ya ha respondido esta pregunta.", "tipo": "Encontrado"}
+        else:
+            cursor.execute("INSERT INTO respuestas (rut, id_pregunta, respuesta) VALUES (?, ?, ?)", (rut_usuario, pregunta_id, True))
+            return {"mensaje": "Respuesta agregada exitosamente.", "tipo": "Creado"}
