@@ -42,6 +42,12 @@ class RespuestaData(BaseModel):
     rut:str
     id_pregunta:int
     respuesta:bool
+    
+class MensajeriaData(BaseModel):
+    topico:str
+    mensaje:str
+    nombre:str
+    timestamp:str
 
 class ConnectionManager:
     def __init__(self):

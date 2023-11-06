@@ -61,6 +61,19 @@ def init_db():
         """
     )
     
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mensajeria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topico TEXT,
+            mensaje TEXT,
+            nombre TEXT,
+            timestamp DATETIME
+        )
+        
+        """
+    )
+    
     # Agregar bateria de preguntas a Preguntas
     with open('preguntas.json', 'r') as json_file:
         data = json.load(json_file)
