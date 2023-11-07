@@ -12,7 +12,7 @@ import asyncio
 from pydantic import BaseModel
 
 app = FastAPI()
-broker = '192.168.2.1'
+broker = 'broker.hivemq.com'
 port = 1883
 
 actuadores = ['leds','door','ventilation']
@@ -77,16 +77,16 @@ def on_message(client, userdata, message):
                         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
                     else:
                         cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
-                elif (topic == "door"):
-                    print("Mensaje recibido en", topic, ":", mensaje_recibido)
-                    mensaje_recibido_puerta = json.loads(mensaje_recibido)
-                    # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
-                    existing_puerta = cursor.fetchone()
-                    if existing_puerta:
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
-                    else:
-                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
+                # elif (topic == "door"):
+                #     print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                #     mensaje_recibido_puerta = json.loads(mensaje_recibido)
+                #     # comprobar si existe o no en la base de datos
+                #     cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
+                #     existing_puerta = cursor.fetchone()
+                #     if existing_puerta:
+                #         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
+                #     else:
+                #         cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
             else:
                 # Obtener el timestamp actual en el formato deseado
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -154,16 +154,29 @@ async def read_mensajeria(websocket:WebSocket,topico:str):
     await manager.connect(websocket)
     try:
         while True:
-            if (mensajeria_data['topico'] != '' ):
-                hora_m = time.strftime("%H:%M")
-                data = {"topic":topico,"mensaje":mensajeria_data['mensaje'],"nombre":mensajeria_data['nombre'],"hora":hora_m}
-                print("data: ", data)
-                mensajeria_data.clear()
-                print("mensajeria: ", mensajeria_data)
-                await manager.broadcast(data)
-    except Exception:
-        manager.disconnect(websocket)
-        
+            data_json = await websocket.receive_text()
+            data = json.loads(data_json)
+            mensaje = data.get('mensaje')
+            nombre = data.get('nombre')
+            topico = data.get('topico')
+            print(mensaje)
+            await manager.broadcast(data)
+    except WebSocketDisconnect:
+        manager.disconnect()
+        await manager.broadcast("Desconectado")
+    
+    # await manager.connect(websocket)
+    # try:
+    #     while True:
+    #         if (mensajeria_data['topico'] != '' ):
+    #             hora_m = time.strftime("%H:%M")
+    #             data = {"topic":topico,"mensaje":mensajeria_data['mensaje'],"nombre":mensajeria_data['nombre'],"hora":hora_m}
+    #             mensajeria_data.clear()
+    #             print("mensajeria: ", mensajeria_data)
+    #             await manager.broadcast(data)
+    # except Exception:
+    #     manager.disconnect(websocket)
+
 # Endpoint para testear conexión mqtt
 @app.get("/test-mqtt-protocol")
 async def test_mqtt_protocol():
@@ -347,17 +360,3 @@ async def get_respuestas(rutEstudiante:str):
     respuestas_lista = [respuesta[0] for respuesta in respuestas]
     print("respuestas",respuestas_lista)
     return {"respuestas":respuestas_lista}
-
-# agregar nuevo mensaje
-@app.post("/mensajeria/agregar")
-async def agregar_mensaje(data: dict):
-    print("mensaje",data)
-    topico = data.get('topico')
-    mensaje = data.get('mensaje')
-    nombre = data.get('nombre')
-    timestamp = time.strftime("%H:%M:%S")
-    if not topico or not mensaje or not nombre or not timestamp:
-        return {"mensaje": "Faltan datos en la petición.", "tipo": "Error"}
-    data_string = json.dumps(data)
-    mqtt_client.publish(topico,data_string)
-    return {"mensaje": "Mensaje enviado exitosamente.", "tipo": "Creado"}
