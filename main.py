@@ -159,10 +159,11 @@ async def read_mensajeria(websocket:WebSocket,topico:str):
             mensaje = data.get('mensaje')
             nombre = data.get('nombre')
             topico = data.get('topico')
-            print(mensaje)
+            print(data_json)
             await manager.broadcast(data)
     except WebSocketDisconnect:
-        manager.disconnect()
+        print("Desconectado")
+        manager.disconnect(websocket)
         await manager.broadcast("Desconectado")
     
     # await manager.connect(websocket)
