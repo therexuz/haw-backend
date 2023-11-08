@@ -12,7 +12,7 @@ import asyncio
 from pydantic import BaseModel
 
 app = FastAPI()
-broker = 'broker.hivemq.com'
+broker = '192.168.2.1'
 port = 1883
 
 actuadores = ['leds','door','ventilation']
@@ -77,16 +77,17 @@ def on_message(client, userdata, message):
                         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
                     else:
                         cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
-                # elif (topic == "door"):
-                #     print("Mensaje recibido en", topic, ":", mensaje_recibido)
-                #     mensaje_recibido_puerta = json.loads(mensaje_recibido)
-                #     # comprobar si existe o no en la base de datos
-                #     cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
-                #     existing_puerta = cursor.fetchone()
-                #     if existing_puerta:
-                #         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
-                #     else:
-                #         cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
+                elif (topic == "door"):
+            
+                    print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                    mensaje_recibido_puerta = json.loads(mensaje_recibido)
+                    # comprobar si existe o no en la base de datos
+                    cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
+                    existing_puerta = cursor.fetchone()
+                    if existing_puerta:
+                        cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
+                    else:
+                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
             else:
                 # Obtener el timestamp actual en el formato deseado
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
