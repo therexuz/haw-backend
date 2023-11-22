@@ -15,12 +15,14 @@ from fastapi.openapi.docs import (get_swagger_ui_html)
 app = FastAPI(
     title="API Home Automation Wizard",
     description="""This API is responsible for managing the home automation wizard's data and communication with MQTT broker.""",
-    version= "0.1.0" 
+    version= "0.1.0",
+    docs_url=None, 
+    redoc_url=None
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-broker = '192.168.2.1'
+broker = 'broker.hivemq.com'
 port = 1883
 
 actuadores = ['leds','door','ventilation']
