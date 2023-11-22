@@ -2,16 +2,24 @@ from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
 import sqlite3
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI,WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
-from models import EstudianteData, UserDataBase, UserDataCreate, SensorData, ConnectionManager
+from models import EstudianteData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import (get_swagger_ui_html)
 
-app = FastAPI()
+app = FastAPI(
+    title="API Home Automation Wizard",
+    description="""This API is responsible for managing the home automation wizard's data and communication with MQTT broker.""",
+    version= "0.1.0" 
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 broker = '192.168.2.1'
 port = 1883
 
@@ -148,6 +156,17 @@ ultimos_mensajes = {
     "ventilation":"",
     "leds_status":{}
 }
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Swagger UI",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="/static/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui.css",
+    )
+
 
 # enviar mensajes en tiempo real que van llegando a mensajeria, junto con el nombre del usuario, a traves del rut del mensaje de un topico especifico
 @app.websocket("/mensajeria/{topico}")
