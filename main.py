@@ -22,7 +22,7 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-broker = 'broker.hivemq.com'
+broker = '192.168.2.1'
 port = 1883
 
 actuadores = ['leds','door','ventilation']
