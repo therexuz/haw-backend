@@ -169,24 +169,24 @@ async def custom_swagger_ui_html():
         swagger_css_url="/static/swagger-ui.css",
     )
 
-
 # enviar mensajes en tiempo real que van llegando a mensajeria, junto con el nombre del usuario, a traves del rut del mensaje de un topico especifico
 @app.websocket("/mensajeria/{topico}")
 async def read_mensajeria(websocket:WebSocket,topico:str):
-    await manager.connect(websocket)
+    await manager.connect(websocket, topico)
     try:
         while True:
             data_json = await websocket.receive_text()
             data = json.loads(data_json)
-            mensaje = data.get('mensaje')
-            nombre = data.get('nombre')
-            topico = data.get('topico')
             print(data_json)
-            await manager.broadcast(data)
+            await manager.broadcast(topico, data)
     except WebSocketDisconnect:
-        print("Desconectado")
-        manager.disconnect(websocket)
-        await manager.broadcast("Desconectado")
+        pass
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        await manager.disconnect(topico, websocket)
     
     # await manager.connect(websocket)
     # try:
@@ -216,18 +216,38 @@ async def estado_leds():
             ultimos_mensajes["leds_status"][led[1]] = led[3]
     return {"leds_status":ultimos_mensajes["leds_status"]}
 
-
-# Endpoints de los sensores
-@app.websocket("/temperature")
-async def read_temperature(websocket:WebSocket):
-    await manager.connect(websocket)
+@app.websocket("/{sensor}")
+async def read_sensor(websocket: WebSocket, sensor: str):
+    await manager.connect(websocket, sensor)
     try:
         while True:
-            data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
-            await manager.broadcast(data)
+            data = {
+                "topic": sensor,
+                "measure_time": time.strftime("%H:%M:%S"),
+                "value": str(ultimos_mensajes[sensor])
+            }
+            await manager.broadcast(sensor, data)
             await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+    except WebSocketDisconnect:
+        pass
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        await manager.disconnect(sensor, websocket)
+
+# Endpoints de los sensores
+# @app.websocket("/temperature")
+# async def read_temperature(websocket:WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
+#             await manager.broadcast(data)
+#             await asyncio.sleep(5)
+#     except Exception:
+#         manager.disconnect(websocket)
         
 # obtener los datos de la ultima hora de datos de temperature
 @app.get("/datos/tipo-sensor={tipo}")
@@ -247,49 +267,49 @@ async def get_last_hour_temperature(tipo:str):
         formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
 
-@app.websocket("/air_quality")
-async def read_air_quality(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+# @app.websocket("/air_quality")
+# async def read_air_quality(websocket:WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
+#             await manager.broadcast(data)
+#             await asyncio.sleep(5)
+#     except Exception:
+#         manager.disconnect(websocket)
 
-@app.websocket("/presion-atm")
-async def read_atm_pressure(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+# @app.websocket("/pressure")
+# async def read_atm_pressure(websocket:WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
+#             await manager.broadcast(data)
+#             await asyncio.sleep(5)
+#     except Exception:
+#         manager.disconnect(websocket)
 
-@app.websocket("/humidity")
-async def read_humidity(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+# @app.websocket("/humidity")
+# async def read_humidity(websocket:WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
+#             await manager.broadcast(data)
+#             await asyncio.sleep(5)
+#     except Exception:
+#         manager.disconnect(websocket)
 
-@app.websocket("/light")
-async def read_light_level(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+# @app.websocket("/light")
+# async def read_light_level(websocket:WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
+#             await manager.broadcast(data)
+#             await asyncio.sleep(5)
+#     except Exception:
+#         manager.disconnect(websocket)
         
 # Endpoints de los actuadores
 @app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
