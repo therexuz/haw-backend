@@ -25,7 +25,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 broker = '192.168.2.1'
 port = 1883
 
-actuadores = ['leds','door','ventilation']
+actuadores = ['Led','Puerta','Ventilacion']
 sensores = ['temperature','humidity','pressure','air_quality','light'] ## TODO:
 
 manager = ConnectionManager()
@@ -59,54 +59,52 @@ def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
-    
-    # si el topico contiene la palabra canal 
+
+    # si el topico contiene la palabra canal
     if topic.find("canal") != -1:
-        msj_json = json.loads(mensaje_recibido)
-        print(msj_json)
-        # Obtener el timestamp actual en el formato deseado
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        # Almacena los datos en la base de datos SQLite
-        mensajeria_data["topico"] = msj_json['topico']
-        mensajeria_data["mensaje"] = msj_json['mensaje']
-        mensajeria_data['nombre'] = msj_json['nombre']
-        print("mensajeria: ", mensajeria_data)
-            
-        
+        _extracted_from_on_message_8(mensaje_recibido)
     else:
         with db_connection() as cursor:
             if topic in actuadores:
-                if (topic == "leds"):
-                    print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                if (topic == "Led"):
                     mensaje_recibido_led = json.loads(mensaje_recibido)
                     ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
                     # comprobar si existe o no en la base de datos
                     cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_led['led_id'],))
-                    existing_led = cursor.fetchone()
-                    if existing_led:
+                    if existing_led := cursor.fetchone():
                         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
                     else:
                         cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
-                elif (topic == "door"):
-            
-                    print("Mensaje recibido en", topic, ":", mensaje_recibido)
+                elif (topic == "Puerta"):
                     mensaje_recibido_puerta = json.loads(mensaje_recibido)
                     # comprobar si existe o no en la base de datos
                     cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
-                    existing_puerta = cursor.fetchone()
-                    if existing_puerta:
+                    if existing_puerta := cursor.fetchone():
                         cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
                     else:
-                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
+                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))
             else:
                 # Obtener el timestamp actual en el formato deseado
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-                
+
                 # Almacena los datos en la base de datos SQLite
                 cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
                 # Almacena el último mensaje recibido en un diccionario global
 
                 ultimos_mensajes[topic] = mensaje_recibido
+
+
+# TODO Rename this here and in `on_message`
+def _extracted_from_on_message_8(mensaje_recibido):
+    msj_json = json.loads(mensaje_recibido)
+    print(msj_json)
+    # Obtener el timestamp actual en el formato deseado
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    # Almacena los datos en la base de datos SQLite
+    mensajeria_data["topico"] = msj_json['topico']
+    mensajeria_data["mensaje"] = msj_json['mensaje']
+    mensajeria_data['nombre'] = msj_json['nombre']
+    print("mensajeria: ", mensajeria_data)
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -125,9 +123,9 @@ mqtt_client.subscribe("air_quality")
 mqtt_client.subscribe("light")
 
 # Suscripción a tópicos de actuadores
-mqtt_client.subscribe("leds")
-mqtt_client.subscribe("door")
-mqtt_client.subscribe("ventilation")
+mqtt_client.subscribe("Led")
+mqtt_client.subscribe("Puerta")
+mqtt_client.subscribe("Ventilacion")
 
 
 mqtt_client.subscribe('canal1')
@@ -318,10 +316,10 @@ async def control_leds(set_status:str,led_id:str):
         {"set_status":set_status,"led_id":led_id},separators=(',', ':')
     )
     if(set_status == "ON"):
-        mqtt_client.publish("leds",MQTT_MSG)
+        mqtt_client.publish("Led",MQTT_MSG)
         return {"message": "Luz encendida correctamente"}
     elif (set_status == "OFF"):
-        mqtt_client.publish("leds",MQTT_MSG)
+        mqtt_client.publish("Led",MQTT_MSG)
         return {"message": "Luz apagada correctamente"}
     else:
         return {"message": "Error en la petición, se esperaba ON o OFF."}
@@ -332,10 +330,10 @@ async def controlar_puerta(set_status:str,puerta_id:str):
         {"set_status":set_status,"puerta_id":puerta_id},separators=(',', ':')
     )
     if(set_status == "OPEN"):
-        mqtt_client.publish("door",MQTT_MSG)
+        mqtt_client.publish("Puerta",MQTT_MSG)
         return {"message": "Puerta abierta correctamente"}
     elif (set_status == "CLOSE"):
-        mqtt_client.publish("door",MQTT_MSG)
+        mqtt_client.publish("Puerta",MQTT_MSG)
         return {"message": "Puerta cerrada correctamente"}
     else:
         return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
