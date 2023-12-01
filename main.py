@@ -61,59 +61,27 @@ def on_message(client, userdata, message):
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
 
-    # si el topico contiene la palabra canal
-    if topic.find("canal") != -1:
-        _extracted_from_on_message_8(mensaje_recibido)
-    else:
-        with db_connection() as cursor:
-            if topic in actuadores:
-                mensaje_recibido_actuador = json.loads(mensaje_recibido)
-                # comprobar si existe o no en la base de datos
-                cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_actuador['actuador_id'],))
-                if existing_actuador := cursor.fetchone():
-                    cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_actuador['set_status'],mensaje_recibido_actuador['actuador_id']))
-                else:
-                    cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_actuador['actuador_id'], mensaje_recibido_actuador['set_status'], topic))
-                
-                if (topic == "Ledu"):
-                    mensaje_recibido_led = json.loads(mensaje_recibido)
-                    ultimos_mensajes["leds_status"][(mensaje_recibido_led['actuador_id'])] = (mensaje_recibido_led['set_status'])
-                    # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_led['actuador_id'],))
-                    if existing_led := cursor.fetchone():
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['actuador_id']))
-                    else:
-                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['actuador_id'], mensaje_recibido_led['set_status'], topic))
-                elif (topic == "Puertag"):
-                    mensaje_recibido_puerta = json.loads(mensaje_recibido)
-                    # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_puerta['puerta_id'],))
-                    if existing_puerta := cursor.fetchone():
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
-                    else:
-                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))
+    with db_connection() as cursor:
+        if topic in actuadores:
+            mensaje_recibido_actuador = json.loads(mensaje_recibido)
+            # comprobar si existe o no en la base de datos
+            cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_actuador['actuador_id'],))
+            if existing_actuador := cursor.fetchone():
+                cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_actuador['set_status'],mensaje_recibido_actuador['actuador_id']))
             else:
-                # Obtener el timestamp actual en el formato deseado
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_actuador['actuador_id'], mensaje_recibido_actuador['set_status'], topic))
+        elif topic in sensores:
+            # Obtener el timestamp actual en el formato deseado
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
-                # Almacena los datos en la base de datos SQLite
-                cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
-                # Almacena el último mensaje recibido en un diccionario global
+            # Almacena los datos en la base de datos SQLite
+            cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
+            # Almacena el último mensaje recibido en un diccionario global
 
-                ultimos_mensajes[topic] = mensaje_recibido
+            if topic not in ultimos_mensajes:
+                ultimos_mensajes[topic] = ''
+            ultimos_mensajes[topic] = mensaje_recibido
 
-
-# TODO Rename this here and in `on_message`
-def _extracted_from_on_message_8(mensaje_recibido):
-    msj_json = json.loads(mensaje_recibido)
-    print(msj_json)
-    # Obtener el timestamp actual en el formato deseado
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    # Almacena los datos en la base de datos SQLite
-    mensajeria_data["topico"] = msj_json['topico']
-    mensajeria_data["mensaje"] = msj_json['mensaje']
-    mensajeria_data['nombre'] = msj_json['nombre']
-    print("mensajeria: ", mensajeria_data)
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -125,21 +93,12 @@ mqtt_client.subscribe("test-result")
 mqtt_client.subscribe("test-mqtt")
 
 # Suscripción a tópicos de sensores
-mqtt_client.subscribe("temperature")
-mqtt_client.subscribe("humidity")
-mqtt_client.subscribe("pressure")
-mqtt_client.subscribe("air_quality")
-mqtt_client.subscribe("light")
+for sensor in sensores:
+    mqtt_client.subscribe(sensor)
 
 # Suscripción a tópicos de actuadores
-mqtt_client.subscribe("Led")
-mqtt_client.subscribe("Puerta")
-mqtt_client.subscribe("Ventilacion")
-
-
-mqtt_client.subscribe('canal1')
-mqtt_client.subscribe('canal2')
-mqtt_client.subscribe('canal3')
+for actuador in actuadores:
+    mqtt_client.subscribe(actuador)
 
 #inicio del loop del cliente
 mqtt_client.loop_start()
@@ -153,18 +112,7 @@ mensajeria_data = {
 }
 
 # Diccionario para almacenar los últimos mensajes de cada tópico
-ultimos_mensajes = {
-    "temperature": "",
-    "humidity": "",
-    "pressure": "",
-    "air_quality":"",
-    "light":"",
-    "test-result":"",
-    "leds":"",
-    "door":"",
-    "ventilation":"",
-    "leds_status":{}
-}
+ultimos_mensajes = {}
 
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
@@ -264,20 +212,6 @@ async def get_last_hour_temperature(tipo:str):
 
         formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
-        
-@app.get("/controlar_puerta/set_status={set_status}&actuador_id={puerta_id}")
-async def controlar_puerta(set_status:str,puerta_id:str):
-    MQTT_MSG = json.dumps(
-        {"set_status":set_status,"actuador_id":puerta_id},separators=(',', ':')
-    )
-    if(set_status == "OPEN"):
-        mqtt_client.publish("Puerta",MQTT_MSG)
-        return {"message": "Puerta abierta correctamente"}
-    elif (set_status == "CLOSE"):
-        mqtt_client.publish("Puerta",MQTT_MSG)
-        return {"message": "Puerta cerrada correctamente"}
-    else:
-        return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
     
 @app.get("/controlar_actuador/set_status={set_status}&actuador_id={actuador_id}&topico={topico}")
 async def controlar_actuador(set_status:str,actuador_id:str,topico:str):
@@ -289,6 +223,8 @@ async def controlar_actuador(set_status:str,actuador_id:str,topico:str):
     else:
         return {"message": "Error en la petición."}
         
+        
+## ---------------------------------------------------------------------------------------------
 @app.post("/usuarios/verificar-usuario")
 async def verificar_usuario(usuario: EstudianteData):
     # Conéctate a la base de datos SQLite
