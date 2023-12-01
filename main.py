@@ -25,7 +25,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 broker = '192.168.2.1'
 port = 1883
 
-actuadores = ['Led','Puerta','Ventilacion']
+actuadores = ['Led','Puerta']
+no_actuadores = ['Ventilacion']
 sensores = ['temperature','humidity','pressure','air_quality','light'] ## TODO:
 
 manager = ConnectionManager()
@@ -66,15 +67,23 @@ def on_message(client, userdata, message):
     else:
         with db_connection() as cursor:
             if topic in actuadores:
-                if (topic == "Led"):
+                mensaje_recibido_actuador = json.loads(mensaje_recibido)
+                # comprobar si existe o no en la base de datos
+                cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_actuador['actuador_id'],))
+                if existing_actuador := cursor.fetchone():
+                    cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_actuador['set_status'],mensaje_recibido_actuador['actuador_id']))
+                else:
+                    cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_actuador['actuador_id'], mensaje_recibido_actuador['set_status'], topic))
+                
+                if (topic == "Ledu"):
                     mensaje_recibido_led = json.loads(mensaje_recibido)
-                    ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
+                    ultimos_mensajes["leds_status"][(mensaje_recibido_led['actuador_id'])] = (mensaje_recibido_led['set_status'])
                     # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_led['led_id'],))
+                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_led['actuador_id'],))
                     if existing_led := cursor.fetchone():
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
+                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['actuador_id']))
                     else:
-                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
+                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['actuador_id'], mensaje_recibido_led['set_status'], topic))
                 elif (topic == "Puerta"):
                     mensaje_recibido_puerta = json.loads(mensaje_recibido)
                     # comprobar si existe o no en la base de datos
@@ -206,13 +215,28 @@ async def test_mqtt_protocol():
 
 @app.get("/estado-leds")
 async def estado_leds():
+    topico = 'Led'
+    if topico not in ultimos_mensajes:
+        ultimos_mensajes[topico] = {}
     # Estado de leds en la base de datos de actuadores
     with db_connection() as cursor:
-        cursor.execute("SELECT * FROM actuadores WHERE topic = 'leds'")
-        leds_status = cursor.fetchall()
-        for led in leds_status:
-            ultimos_mensajes["leds_status"][led[1]] = led[3]
-    return {"leds_status":ultimos_mensajes["leds_status"]}
+        cursor.execute("SELECT * FROM actuadores WHERE topic = ?", (topico,))
+        actuadores = cursor.fetchall()
+        for act in actuadores:
+            ultimos_mensajes[topico][act[1]] = act[3]
+    return {"estado_actuador":ultimos_mensajes[topico]}
+
+@app.get("/estado-actuadores/topico={topico}")
+async def estado_actuadores(topico: str):
+    if topico not in ultimos_mensajes:
+        ultimos_mensajes[topico] = {}
+    # Estado de leds en la base de datos de actuadores
+    with db_connection() as cursor:
+        cursor.execute("SELECT * FROM actuadores WHERE topic = ?", (topico,))
+        actuadores = cursor.fetchall()
+        for act in actuadores:
+            ultimos_mensajes[topico][act[1]] = act[3]
+    return {"estado_actuador":ultimos_mensajes[topico]}
 
 @app.websocket("/{sensor}")
 async def read_sensor(websocket: WebSocket, sensor: str):
@@ -337,6 +361,16 @@ async def controlar_puerta(set_status:str,puerta_id:str):
         return {"message": "Puerta cerrada correctamente"}
     else:
         return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
+    
+@app.get("/controlar_actuador/set_status={set_status}&actuador_id={actuador_id}&topico={topico}")
+async def controlar_actuador(set_status:str,actuador_id:str,topico:str):
+    MQTT_MSG = json.dumps(
+        {"set_status":set_status,"actuador_id":actuador_id},separators=(',', ':')
+    )
+    if(set_status):
+        mqtt_client.publish(topico,MQTT_MSG)
+    else:
+        return {"message": "Error en la petición."}
         
 @app.post("/usuarios/verificar-usuario")
 async def verificar_usuario(usuario: EstudianteData):
