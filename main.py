@@ -70,19 +70,19 @@ def on_message(client, userdata, message):
                     mensaje_recibido_led = json.loads(mensaje_recibido)
                     ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
                     # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_led['led_id'],))
+                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_led['led_id'],))
                     if existing_led := cursor.fetchone():
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
+                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
                     else:
-                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
+                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
                 elif (topic == "Puerta"):
                     mensaje_recibido_puerta = json.loads(mensaje_recibido)
                     # comprobar si existe o no en la base de datos
-                    cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
+                    cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_puerta['puerta_id'],))
                     if existing_puerta := cursor.fetchone():
-                        cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
+                        cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
                     else:
-                        cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))
+                        cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))
             else:
                 # Obtener el timestamp actual en el formato deseado
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")

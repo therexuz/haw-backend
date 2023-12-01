@@ -19,7 +19,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS actuadores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_led TEXT,
+            actuador_id TEXT,
             topic TEXT,
             status INTEGER
         )

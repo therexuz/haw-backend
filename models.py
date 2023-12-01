@@ -22,7 +22,7 @@ class SensorData(BaseModel):
     value:str
     
 class ActuadorData(BaseModel):
-    led_id:str
+    actuador_id:str
     set_status:str
     topic:str
     
