@@ -149,19 +149,6 @@ async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
     return {"test-result":ultimos_mensajes["test-result"]}
 
-@app.get("/estado-leds")
-async def estado_leds():
-    topico = 'Led'
-    if topico not in ultimos_mensajes:
-        ultimos_mensajes[topico] = {}
-    # Estado de leds en la base de datos de actuadores
-    with db_connection() as cursor:
-        cursor.execute("SELECT * FROM actuadores WHERE topic = ?", (topico,))
-        actuadores = cursor.fetchall()
-        for act in actuadores:
-            ultimos_mensajes[topico][act[1]] = act[3]
-    return {"estado_actuador":ultimos_mensajes[topico]}
-
 @app.get("/estado-actuadores/topico={topico}")
 async def estado_actuadores(topico: str):
     if topico not in ultimos_mensajes:
