@@ -84,7 +84,7 @@ def on_message(client, userdata, message):
                         cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['actuador_id']))
                     else:
                         cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['actuador_id'], mensaje_recibido_led['set_status'], topic))
-                elif (topic == "Puerta"):
+                elif (topic == "Puertag"):
                     mensaje_recibido_puerta = json.loads(mensaje_recibido)
                     # comprobar si existe o no en la base de datos
                     cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_puerta['puerta_id'],))
@@ -265,10 +265,10 @@ async def get_last_hour_temperature(tipo:str):
         formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
         
-@app.get("/controlar_puerta/set_status={set_status}&puerta_id={puerta_id}")
+@app.get("/controlar_puerta/set_status={set_status}&actuador_id={puerta_id}")
 async def controlar_puerta(set_status:str,puerta_id:str):
     MQTT_MSG = json.dumps(
-        {"set_status":set_status,"puerta_id":puerta_id},separators=(',', ':')
+        {"set_status":set_status,"actuador_id":puerta_id},separators=(',', ':')
     )
     if(set_status == "OPEN"):
         mqtt_client.publish("Puerta",MQTT_MSG)
