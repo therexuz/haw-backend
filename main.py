@@ -194,18 +194,6 @@ async def read_mensajeria(websocket:WebSocket,topico:str):
         print(f"An unexpected error occurred: {e}")
     finally:
         await manager.disconnect(topico, websocket)
-    
-    # await manager.connect(websocket)
-    # try:
-    #     while True:
-    #         if (mensajeria_data['topico'] != '' ):
-    #             hora_m = time.strftime("%H:%M")
-    #             data = {"topic":topico,"mensaje":mensajeria_data['mensaje'],"nombre":mensajeria_data['nombre'],"hora":hora_m}
-    #             mensajeria_data.clear()
-    #             print("mensajeria: ", mensajeria_data)
-    #             await manager.broadcast(data)
-    # except Exception:
-    #     manager.disconnect(websocket)
 
 # Endpoint para testear conexión mqtt
 @app.get("/test-mqtt-protocol")
@@ -258,18 +246,6 @@ async def read_sensor(websocket: WebSocket, sensor: str):
         print(f"An unexpected error occurred: {e}")
     finally:
         await manager.disconnect(sensor, websocket)
-
-# Endpoints de los sensores
-# @app.websocket("/temperature")
-# async def read_temperature(websocket:WebSocket):
-#     await manager.connect(websocket)
-#     try:
-#         while True:
-#             data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
-#             await manager.broadcast(data)
-#             await asyncio.sleep(5)
-#     except Exception:
-#         manager.disconnect(websocket)
         
 # obtener los datos de la ultima hora de datos de temperature
 @app.get("/datos/tipo-sensor={tipo}")
@@ -288,66 +264,7 @@ async def get_last_hour_temperature(tipo:str):
 
         formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
-
-# @app.websocket("/air_quality")
-# async def read_air_quality(websocket:WebSocket):
-#     await manager.connect(websocket)
-#     try:
-#         while True:
-#             data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
-#             await manager.broadcast(data)
-#             await asyncio.sleep(5)
-#     except Exception:
-#         manager.disconnect(websocket)
-
-# @app.websocket("/pressure")
-# async def read_atm_pressure(websocket:WebSocket):
-#     await manager.connect(websocket)
-#     try:
-#         while True:
-#             data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
-#             await manager.broadcast(data)
-#             await asyncio.sleep(5)
-#     except Exception:
-#         manager.disconnect(websocket)
-
-# @app.websocket("/humidity")
-# async def read_humidity(websocket:WebSocket):
-#     await manager.connect(websocket)
-#     try:
-#         while True:
-#             data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
-#             await manager.broadcast(data)
-#             await asyncio.sleep(5)
-#     except Exception:
-#         manager.disconnect(websocket)
-
-# @app.websocket("/light")
-# async def read_light_level(websocket:WebSocket):
-#     await manager.connect(websocket)
-#     try:
-#         while True:
-#             data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
-#             await manager.broadcast(data)
-#             await asyncio.sleep(5)
-#     except Exception:
-#         manager.disconnect(websocket)
         
-# Endpoints de los actuadores
-@app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
-async def control_leds(set_status:str,led_id:str):
-    MQTT_MSG = json.dumps(
-        {"set_status":set_status,"led_id":led_id},separators=(',', ':')
-    )
-    if(set_status == "ON"):
-        mqtt_client.publish("Led",MQTT_MSG)
-        return {"message": "Luz encendida correctamente"}
-    elif (set_status == "OFF"):
-        mqtt_client.publish("Led",MQTT_MSG)
-        return {"message": "Luz apagada correctamente"}
-    else:
-        return {"message": "Error en la petición, se esperaba ON o OFF."}
-    
 @app.get("/controlar_puerta/set_status={set_status}&puerta_id={puerta_id}")
 async def controlar_puerta(set_status:str,puerta_id:str):
     MQTT_MSG = json.dumps(
