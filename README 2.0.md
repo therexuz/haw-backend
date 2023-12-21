@@ -119,15 +119,7 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
          sudo systemctl restart haw-backend.service
       ```
 
-3. Configura y ejecuta el servicio en systemd:
-
-   ```bash
-      sudo cp haw-backend.service /etc/systemd/system/
-      sudo systemctl enable haw-backend.service
-      sudo systemctl start haw-backend.service
-   ```
-
-4. Verificar el estado del servicio haw-backend
+3. Verificar el estado del servicio haw-backend
 
    ```bash
       sudo systemctl status haw-backend.service
