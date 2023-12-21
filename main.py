@@ -2,20 +2,31 @@ from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
 import sqlite3
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI,WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 import time
-from models import EstudianteData, UserDataBase, UserDataCreate, SensorData, ConnectionManager
+from models import EstudianteData, ConnectionManager
 from contextlib import contextmanager
 import asyncio
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import (get_swagger_ui_html)
 
-app = FastAPI()
+app = FastAPI(
+    title="API Home Automation Wizard",
+    description="""This API is responsible for managing the home automation wizard's data and communication with MQTT broker.""",
+    version= "0.1.0",
+    docs_url=None, 
+    redoc_url=None
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 broker = '192.168.2.1'
 port = 1883
 
-actuadores = ['leds','door','ventilation']
+actuadores = ['Led','Puerta']
+no_actuadores = ['Ventilacion']
 sensores = ['temperature','humidity','pressure','air_quality','light'] ## TODO:
 
 manager = ConnectionManager()
@@ -49,39 +60,28 @@ def on_message(client, userdata, message):
     topic = message.topic
     mensaje_recibido = message.payload.decode()
     print("Mensaje recibido en", topic, ":", mensaje_recibido)
-    
+
     with db_connection() as cursor:
         if topic in actuadores:
-            if (topic == "leds"):
-                print("Mensaje recibido en", topic, ":", mensaje_recibido)
-                mensaje_recibido_led = json.loads(mensaje_recibido)
-                ultimos_mensajes["leds_status"][(mensaje_recibido_led['led_id'])] = (mensaje_recibido_led['set_status'])
-                # comprobar si existe o no en la base de datos
-                cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_led['led_id'],))
-                existing_led = cursor.fetchone()
-                if existing_led:
-                    cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_led['set_status'],mensaje_recibido_led['led_id']))
-                else:
-                    cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_led['led_id'], mensaje_recibido_led['set_status'], topic))
-            elif (topic == "door"):
-                print("Mensaje recibido en", topic, ":", mensaje_recibido)
-                mensaje_recibido_puerta = json.loads(mensaje_recibido)
-                # comprobar si existe o no en la base de datos
-                cursor.execute("SELECT * FROM actuadores WHERE id_led = ?", (mensaje_recibido_puerta['puerta_id'],))
-                existing_puerta = cursor.fetchone()
-                if existing_puerta:
-                    cursor.execute("UPDATE actuadores SET status = ? WHERE id_led = ?", (mensaje_recibido_puerta['set_status'],mensaje_recibido_puerta['puerta_id']))
-                else:
-                    cursor.execute("INSERT INTO actuadores (id_led, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_puerta['puerta_id'], mensaje_recibido_puerta['set_status'], topic))                
-        else:
+            mensaje_recibido_actuador = json.loads(mensaje_recibido)
+            # comprobar si existe o no en la base de datos
+            cursor.execute("SELECT * FROM actuadores WHERE actuador_id = ?", (mensaje_recibido_actuador['actuador_id'],))
+            if existing_actuador := cursor.fetchone():
+                cursor.execute("UPDATE actuadores SET status = ? WHERE actuador_id = ?", (mensaje_recibido_actuador['set_status'],mensaje_recibido_actuador['actuador_id']))
+            else:
+                cursor.execute("INSERT INTO actuadores (actuador_id, status, topic) VALUES (?, ?, ?)", (mensaje_recibido_actuador['actuador_id'], mensaje_recibido_actuador['set_status'], topic))
+        elif topic in sensores:
             # Obtener el timestamp actual en el formato deseado
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            
+
             # Almacena los datos en la base de datos SQLite
             cursor.execute("INSERT INTO sensor_data (topic, timestamp, value) VALUES (?, ?, ?)", (topic, timestamp, mensaje_recibido))
             # Almacena el último mensaje recibido en un diccionario global
 
+            if topic not in ultimos_mensajes:
+                ultimos_mensajes[topic] = ''
             ultimos_mensajes[topic] = mensaje_recibido
+
 
 # Configura el cliente MQTT
 mqtt_client = mqtt.Client()
@@ -93,33 +93,55 @@ mqtt_client.subscribe("test-result")
 mqtt_client.subscribe("test-mqtt")
 
 # Suscripción a tópicos de sensores
-mqtt_client.subscribe("temperature")
-mqtt_client.subscribe("humidity")
-mqtt_client.subscribe("pressure")
-mqtt_client.subscribe("air_quality")
-mqtt_client.subscribe("light")
+for sensor in sensores:
+    mqtt_client.subscribe(sensor)
 
 # Suscripción a tópicos de actuadores
-mqtt_client.subscribe("leds")
-mqtt_client.subscribe("door")
-mqtt_client.subscribe("ventilation")
+for actuador in actuadores:
+    mqtt_client.subscribe(actuador)
 
 #inicio del loop del cliente
 mqtt_client.loop_start()
 
-# Diccionario para almacenar los últimos mensajes de cada tópico
-ultimos_mensajes = {
-    "temperature": "",
-    "humidity": "",
-    "pressure": "",
-    "air_quality":"",
-    "light":"",
-    "test-result":"",
-    "leds":"",
-    "door":"",
-    "ventilation":"",
-    "leds_status":{}
+# Diccionario para almacenar mensajeria
+mensajeria_data = {
+    "topico":"",
+    "mensaje":"",
+    "nombre":"",
+    "hora":""
 }
+
+# Diccionario para almacenar los últimos mensajes de cada tópico
+ultimos_mensajes = {}
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Swagger UI",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="/static/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui.css",
+    )
+
+# enviar mensajes en tiempo real que van llegando a mensajeria, junto con el nombre del usuario, a traves del rut del mensaje de un topico especifico
+@app.websocket("/mensajeria/{topico}")
+async def read_mensajeria(websocket:WebSocket,topico:str):
+    await manager.connect(websocket, topico)
+    try:
+        while True:
+            data_json = await websocket.receive_text()
+            data = json.loads(data_json)
+            print(data_json)
+            await manager.broadcast(topico, data)
+    except WebSocketDisconnect:
+        pass
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        await manager.disconnect(topico, websocket)
 
 # Endpoint para testear conexión mqtt
 @app.get("/test-mqtt-protocol")
@@ -127,28 +149,38 @@ async def test_mqtt_protocol():
     mqtt_client.publish("test-mqtt","test")
     return {"test-result":ultimos_mensajes["test-result"]}
 
-@app.get("/estado-leds")
-async def estado_leds():
+@app.get("/estado-actuadores/topico={topico}")
+async def estado_actuadores(topico: str):
+    if topico not in ultimos_mensajes:
+        ultimos_mensajes[topico] = {}
     # Estado de leds en la base de datos de actuadores
     with db_connection() as cursor:
-        cursor.execute("SELECT * FROM actuadores WHERE topic = 'leds'")
-        leds_status = cursor.fetchall()
-        for led in leds_status:
-            ultimos_mensajes["leds_status"][led[1]] = led[3]
-    return {"leds_status":ultimos_mensajes["leds_status"]}
+        cursor.execute("SELECT * FROM actuadores WHERE topic = ?", (topico,))
+        actuadores = cursor.fetchall()
+        for act in actuadores:
+            ultimos_mensajes[topico][act[1]] = act[3]
+    return {"estado_actuador":ultimos_mensajes[topico]}
 
-
-# Endpoints de los sensores
-@app.websocket("/temperature")
-async def read_temperature(websocket:WebSocket):
-    await manager.connect(websocket)
+@app.websocket("/{sensor}")
+async def read_sensor(websocket: WebSocket, sensor: str):
+    await manager.connect(websocket, sensor)
     try:
         while True:
-            data = {"topic":"temperature","measure_time": time.strftime("%H:%M:%S"),"value":str(round(float(ultimos_mensajes["temperature"]),2))}
-            await manager.broadcast(data)
+            data = {
+                "topic": sensor,
+                "measure_time": time.strftime("%H:%M:%S"),
+                "value": str(ultimos_mensajes[sensor])
+            }
+            await manager.broadcast(sensor, data)
             await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
+    except WebSocketDisconnect:
+        pass
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        await manager.disconnect(sensor, websocket)
         
 # obtener los datos de la ultima hora de datos de temperature
 @app.get("/datos/tipo-sensor={tipo}")
@@ -167,80 +199,19 @@ async def get_last_hour_temperature(tipo:str):
 
         formatted_results = [dict(zip(column_names, row)) for row in results]
         return {"last_hour_data":formatted_results}
-
-@app.websocket("/air_quality")
-async def read_air_quality(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"air_quality","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["air_quality"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
-
-@app.websocket("/presion-atm")
-async def read_atm_pressure(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"pressure","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["pressure"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
-
-@app.websocket("/humidity")
-async def read_humidity(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"humidity","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["humidity"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
-
-@app.websocket("/light")
-async def read_light_level(websocket:WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = {"topic":"light_sensor","measure_time": time.strftime("%H:%M:%S"),"value":str(ultimos_mensajes["light"])}
-            await manager.broadcast(data)
-            await asyncio.sleep(5)
-    except Exception:
-        manager.disconnect(websocket)
-        
-# Endpoints de los actuadores
-@app.get("/controlar_leds/set_status={set_status}&led_id={led_id}")
-async def control_leds(set_status:str,led_id:str):
-    MQTT_MSG = json.dumps(
-        {"set_status":set_status,"led_id":led_id},separators=(',', ':')
-    )
-    if(set_status == "ON"):
-        mqtt_client.publish("leds",MQTT_MSG)
-        return {"message": "Luz encendida correctamente"}
-    elif (set_status == "OFF"):
-        mqtt_client.publish("leds",MQTT_MSG)
-        return {"message": "Luz apagada correctamente"}
-    else:
-        return {"message": "Error en la petición, se esperaba ON o OFF."}
     
-@app.get("/controlar_puerta/set_status={set_status}&puerta_id={puerta_id}")
-async def controlar_puerta(set_status:str,puerta_id:str):
+@app.get("/controlar_actuador/set_status={set_status}&actuador_id={actuador_id}&topico={topico}")
+async def controlar_actuador(set_status:str,actuador_id:str,topico:str):
     MQTT_MSG = json.dumps(
-        {"set_status":set_status,"puerta_id":puerta_id},separators=(',', ':')
+        {"set_status":set_status,"actuador_id":actuador_id},separators=(',', ':')
     )
-    if(set_status == "OPEN"):
-        mqtt_client.publish("door",MQTT_MSG)
-        return {"message": "Puerta abierta correctamente"}
-    elif (set_status == "CLOSE"):
-        mqtt_client.publish("door",MQTT_MSG)
-        return {"message": "Puerta cerrada correctamente"}
+    if(set_status):
+        mqtt_client.publish(topico,MQTT_MSG)
     else:
-        return {"message": "Error en la petición, se esperaba OPEN o CLOSE."}
+        return {"message": "Error en la petición."}
         
+        
+## ---------------------------------------------------------------------------------------------
 @app.post("/usuarios/verificar-usuario")
 async def verificar_usuario(usuario: EstudianteData):
     # Conéctate a la base de datos SQLite

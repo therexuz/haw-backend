@@ -19,7 +19,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS actuadores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_led TEXT,
+            actuador_id TEXT,
             topic TEXT,
             status INTEGER
         )
@@ -58,6 +58,19 @@ def init_db():
             id_pregunta INTEGER,
             respuesta BOOL
         )
+        """
+    )
+    
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mensajeria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topico TEXT,
+            mensaje TEXT,
+            nombre TEXT,
+            timestamp DATETIME
+        )
+        
         """
     )
     
