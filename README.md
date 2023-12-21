@@ -1,4 +1,4 @@
-# Proyecto IoT con Raspberry Pi 3
+# Proyecto IoT y domótica con Raspberry Pi 3 "Home Automation Wizard"
 
 Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspberry Pi 3 como servidor central. La Raspberry Pi 3 alojará una API que recopila datos de sensores y los publica a través de MQTT. Además, el broker MQTT se ejecutará localmente para recibir datos de dispositivos como ESP32 a través de la red.
 
@@ -9,10 +9,6 @@ Este proyecto tiene como objetivo crear una solución IoT utilizando una Raspber
 - Interfaz de API para acceder a los datos.
 - Ejecución como un servicio en systemd (systemctl).
 - Integración con dispositivos IoT como ESP32.
-
-## Capturas de Pantalla
-
-(Si es relevante, puedes incluir capturas de pantalla de la interfaz de la API o diagramas de arquitectura aquí).
 
 ## Requisitos
 
